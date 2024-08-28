@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Connor-Jay&#39;s Blog</title>
+    <link>https://connorjaydunn.github.io/blog/</link>
+    <description>Recent content on Connor-Jay&#39;s Blog</description>
+    <generator>Hugo</generator>
+    <language>en-us</language>
+    <lastBuildDate>Wed, 21 Aug 2024 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://connorjaydunn.github.io/blog/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Hacking Clemson University</title>
+      <link>https://connorjaydunn.github.io/blog/posts/hacking-clemson-university/</link>
+      <pubDate>Wed, 21 Aug 2024 00:00:00 +0000</pubDate>
+      <guid>https://connorjaydunn.github.io/blog/posts/hacking-clemson-university/</guid>
+      <description>This article details the steps I took to discover and exploit an SQL injection vulnerability on the Clemson University website using my own tool, SQLiF (SQL injection Finder).&#xA;DISCLAIMER This post and the release of my tool, SQLiF, are intended for educational purposes only. I was previously granted permission from Clemson University to document and share my findings with others. I am not responsible for anything you do with the information presented within this post.</description>
+    </item>
+    <item>
+      <title>About</title>
+      <link>https://connorjaydunn.github.io/blog/about/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>https://connorjaydunn.github.io/blog/about/</guid>
+      <description>Hello, I&amp;rsquo;m a second-year Computer Science student with a keen interest in reverse engineering and mathematics. You can contact me via email.</description>
+    </item>
+  </channel>
+</rss>

