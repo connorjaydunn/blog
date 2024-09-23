@@ -6,8 +6,15 @@
     <description>Recent content on Connor-Jay&#39;s Blog</description>
     <generator>Hugo</generator>
     <language>en-us</language>
-    <lastBuildDate>Wed, 21 Aug 2024 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Mon, 23 Sep 2024 00:00:00 +0000</lastBuildDate>
     <atom:link href="https://connorjaydunn.github.io/blog/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>BinaryShield: a bin2bin x86-64 code virtualizer</title>
+      <link>https://connorjaydunn.github.io/blog/posts/binaryshield-a-bin2bin-x86-64-code-virtualizer/</link>
+      <pubDate>Mon, 23 Sep 2024 00:00:00 +0000</pubDate>
+      <guid>https://connorjaydunn.github.io/blog/posts/binaryshield-a-bin2bin-x86-64-code-virtualizer/</guid>
+      <description>The purpose of this post is primarily to explain the technical workings of my tool, BinaryShield, but it can also be treated as an introduction to VM based protections.&#xA;This is NOT About Hypervisor Technology! To clear up any confusion, I want to first clarify that we are not talking about hypervisors such as VMware. I cannot stress that enough. Although they share similar ideas and terminology, I would argue that the kind of VM, or virtual machine, we will be discussing in the post is completely different to hypervisor technology.</description>
+    </item>
     <item>
       <title>Hacking Clemson University</title>
       <link>https://connorjaydunn.github.io/blog/posts/hacking-clemson-university/</link>
@@ -20,7 +27,7 @@
       <link>https://connorjaydunn.github.io/blog/about/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       <guid>https://connorjaydunn.github.io/blog/about/</guid>
-      <description>Hello, I&amp;rsquo;m a second-year Computer Science student with a keen interest in reverse engineering and mathematics. You can contact me via email.</description>
+      <description>Hello, I&amp;rsquo;m a second-year Computer Science student with a keen interest in reverse engineering, programming, and mathematics. You can contact me via email.</description>
     </item>
   </channel>
 </rss>

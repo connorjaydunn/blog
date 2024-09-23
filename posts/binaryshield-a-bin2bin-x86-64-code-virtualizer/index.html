@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta
+    name="description"
+    content=""
+  />
+  
+    
+      <title>BinaryShield: a bin2bin x86-64 code virtualizer | Connor-Jay&#39;s Blog</title>
+    
+  
+  <link rel="stylesheet" href="/blog/css/reset.css"/>
+  <link rel="stylesheet" href="/blog/css/font.css"/>
+  <link rel="stylesheet" href="/blog/css/smigle.css"/>
+  
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
+  <meta name="msapplication-TileColor" content="#da532c">
+  <meta name="theme-color" content="#ffffff">
+</head>
+
+  <body>
+    <div id="root">
+      <header>
+  <div id="brand">
+    <a class="icon-link" href="https://connorjaydunn.github.io/blog/">
+      <img
+        class="icon"
+        src="/blog/images/brandIcon.png"
+      />
+    </a>
+    <div class="text">
+      <a href="https://connorjaydunn.github.io/blog/"><h1>Connor-Jay&#39;s Blog</h1></a>
+      <h3>a bored computer science student</h3>
+    </div>
+  </div>
+  <nav>
+    
+      
+        
+        <a href="/blog/"><b>Home</b></a>
+      
+         | 
+        <a href="/blog/about/"><b>About</b></a>
+      
+         | 
+        <a href="/blog/posts/"><b>Posts</b></a>
+      
+    
+  </nav>
+  <hr />
+</header>
+
+      <div id="content">
+        
+  <main>
+    <article>
+      <h1 class="title">BinaryShield: a bin2bin x86-64 code virtualizer</h1>
+      
+      <div class="post-meta">
+  <strong>
+    <span>Posted on</span>
+    <time>2024-09-23</time>
+    
+    
+  </strong>
+  <span> • 2290 words</span>
+  <span> • 11 minute read</span>
+  
+  
+</div>
+
+      <div class="content"><p>The purpose of this post is primarily to explain the technical workings of my tool, <a href="https://github.com/connorjaydunn/BinaryShield">BinaryShield</a>, but it can also be treated as an introduction to VM based protections.</p>
+<h1 id="this-is-not-about-hypervisor-technology">This is NOT About Hypervisor Technology!</h1>
+<p>To clear up any confusion, I want to first clarify that <strong>we are not talking about hypervisors such as VMware</strong>. I cannot stress that enough. Although they share similar ideas and terminology, I would argue that the kind of VM, or virtual machine, we will be discussing in the post is completely different to hypervisor technology. The kind of VMs we will be discussing today are especially useful in protecting software from reverse engineering efforts, or at least that is the area of application we will be investigating.</p>
+<h2 id="how-does-a-virtual-machine-work">How Does a Virtual Machine Work?</h2>
+<p>The following section is a brief explanation of what virtual machines are, and how they function. It contains little information regarding BinaryShield. Therefore, if you’re already familiar with how virtual machines work, you are advised to <a href="#binaryshield">skip ahead</a>.</p>
+<p>A virtual machine (VM) is a software-based simulation of a physical computer. Although they possess a wide range of applications, such as code portability and platform independence, this article will focus on how they’re applied in protecting code from reverse engineering.</p>
+<p>The technical explanation of their inner workings is virtually <em>(no pun intended)</em> no different to how a physical system functions. Virtual machines typically contain a Central Processing Unit (CPU), some memory, a stack, registers, and whatever else the developer decides to add. The only real difference is how they go about executing instructions.</p>
+<p>Whereas a physical computer executes machine code directly, a virtual machine, running &ldquo;under&rdquo; another system, relies on the underlying physical hardware to perform its tasks. This means that each of its instructions must be translated into a sequence of operations to be executed by the host CPU. These sequences, responsible for interpreting and executing the virtual machine&rsquo;s instructions, are commonly referred to as &ldquo;handlers.&rdquo;</p>
+<p>Depending on the virtual machine, it may have few handlers, or lots. As of writing this, BinaryShield has over 60+. Point being that these handlers are where the virtual machine carries out its execution. If this isn&rsquo;t clear then perhaps taking a look at <a href="#handlers">these examples</a> may help.</p>
+<h2 id="obfuscation-application">Obfuscation Application</h2>
+<p>Now that we have a basic understanding of what a VM is, you might be wondering how it&rsquo;s applied to prevent reverse engineering. Imagine translating the x86 instructions, from a function, into a bytecode for our virtual machine to execute. At this point, the reverse engineer’s task shifts from simply disassembling the executable with common tools like <a href="https://x64dbg.com/">x64dbg</a> to the far more complex challenge of reverse engineering the VM itself. To make any progress, they would need to develop their own disassembler for our VM. This alone significantly raises the difficulty of their task.</p>
+<p>Furthermore, depending on the VM&rsquo;s instruction set, a single x86 instruction may very well translate to multiple VM handlers. Therefore, the reverser must also identify what x86 instruction the sequence of handlers are emulating. But the challenge doesn’t end there. Since handlers consist of native instructions, we can further obfuscate them using techniques like dead code insertion, opaque predicates, and other anti-reverse engineering tricks. These obfuscations add additional layers of complexity, making it even harder for the reverse engineer to identify and understand the true behavior of the handlers, let alone reconstruct the original code.</p>
+<p>As we’ll explore in later sections, translating x86-64 instructions into a custom instruction set is the core of what BinaryShield does. In fact, this is the fundamental approach of any VM-based protection, whether it&rsquo;s Denuvo, Themida, or VMProtect. These systems all translate assembly instructions into a proprietary bytecode, which is then executed within a secure virtual machine, significantly complicating reverse engineering efforts.</p>
+<p><strong>NOTE:</strong> Many of these protectors offer additional features, such as HWID (hardware identification) locking, which restricts program usage to a specific system. However, at their core, they are essentially virtual machines designed to exponentially increase the time required to reverse engineer the program.</p>
+<h1 id="binaryshield">BinaryShield</h1>
+<p>BinaryShield is a open-source, bin2bin, x86-64 code virtualiser. As of writing this, it currently has a limited set of supported instructions it can protect, but this is excepted to change as I develop it further. Likewise, it currently offers no real advantage over any of the well established VM-based protectors, such as VMProtect or Themida, other than it is open source and easy to customise.</p>
+<h2 id="internals">Internals</h2>
+<p>The BinaryShield virtual machine utilizes a stack-based RISC instruction set. Notably, its internal architecture closely resembles that of VMProtect&rsquo;s virtual machine, a similarity that will be explored in more detail shortly.</p>
+<h3 id="architecture">Architecture</h3>
+<h4 id="registers">Registers</h4>
+<p>As mentioned earlier, the BinaryShield virtual machine is stack-based, which means that most instructions access their operands from the virtual stack rather than from registers. However, this does not mean that BinaryShield lacks virtual registers. In fact, the current iteration includes two general-purpose 64-bit registers: R0 and R1.</p>
+<p><strong>R0</strong> - is a general-purpose register, meaning it can be used for various reasons by the virtual machine.<br>
+<strong>R1</strong> - on the other hand is preserved. It’s sole purpose is to store the module base of the program.</p>
+<p>Furthermore, we have the generic registers that one would expect to be found in any stack-based architecture: VSP and VIP.</p>
+<p><strong>VSP</strong> (Virtual Stack Pointer) - is exactly as the name suggests, it is a register that points to the top of the virtual stack.<br>
+<strong>VIP</strong> (Virtual Instruction Pointer) - if it wasn’t obvious from the name again, this is a register that points to the virtual machine’s byte code.</p>
+<h4 id="stack">Stack</h4>
+<p>There isn’t much to say about the virtual stack. It operates as one would expect (i.e. is capable of pushing and popping values). The only notable comment worth making is that it effectively utilises the native stack (see <a href="#native-stack-usage">the following section</a>).</p>
+<h3 id="native-stack-usage">Native Stack Usage</h3>
+<p>Every VM needs to store its context somewhere. Although there are a few ways to go about this, each with their own pros and cons, BinaryShield opts to abuse the native stack to not only carry out its operations but to also store its context.</p>
+<p>Before continuing, I will dedicate a brief talk as to why this approach was taken as opposed to other alternatives.</p>
+<h4 id="native-stack-approach">Native Stack Approach</h4>
+<p>By abusing the native stack, BinaryShield is now capable of executing multi-threaded programs without the constraints of spin-locks, or absurd memory management. This is because each thread that executes the target function has its own memory to use, all automatically provided for us by the OS. The only con to this approach is that whenever the VM pushes something onto the stack, or makes a certain adjustment to the VSP, a “collision” check must be done to ensure we are not about to overwrite our context. If a collision is guaranteed to occur, then BinaryShield will simply move its context further up in the stack (or down depending on how you wish to look at it).</p>
+<p>Although it may sound complex, these collisions are unlikely to begin with and the checks are simple to carry out. Therefore, I believe this is the most optimal approach to the problem.</p>
+<h4 id="reserved-memory-approach">Reserved Memory Approach</h4>
+<p>Some protection schemes, namely Themida, decide to allocate memory for the virtual machine’s context and other mechanisms. Unlike our approach, this means no collision checks are required. However, multi-threaded applications are likely to suffer as spin-locks will be required to prevent two or more threads from overwriting the context space at the same time. There is obviously the approach of dynamically allocating memory each time the VM is entered, but this is just ugly and could cause further problems with memory usage depending on the application.</p>
+<p><strong>NOTE:</strong> If you’re clever, you may realise there exist other faults with dynamically allocating memory (hint: exiting and re-entering the vm) but I won’t bore you with the details.</p>
+<h3 id="native-register-usage">Native Register Usage</h3>
+<p>Similar to abusing the native stack, BinaryShield also takes advantage of the native registers available to it.</p>
+<p><strong>R15</strong> - VSP (Virtual Stack Pointer),<br>
+<strong>R13</strong> - VIP (Virtual Instruction Pointer),<br>
+<strong>R14</strong> - Stores the Module Base Address,</p>
+<p>The primary reason these registers were selected over the likely choice of RAX, RBX, etc, is because certain x86-64 instructions will use the aforementioned registers (i.e. mul), introducing extra complications.</p>
+<h3 id="native-x86-64-context">Native x86-64 Context</h3>
+<p>Obviously, as execution continues, BinaryShield needs to be updating the values of our original x86 registers. In order to do this, and make use of said registers at the same time for its own purposes, BinaryShield will push majority of the x86-64 context onto the stack during the <em>ENTER</em> handler. Later on, <em>POPR64</em> handlers will move these native register values into the VM’s context, where they will be read and written from accordingly.</p>
+<p>Towards the end of the VM’s execution, BinaryShield will perform the opposite of what was described above. Firstly, it will push all of the native register values back onto the stack. Next, it will execute a <em>EXIT</em> handler, popping all of the values back into their respected registers before exiting the VM. If the description of the <em>ENTER</em> and <em>EXIT</em> handlers is confused, see the <a href="#handlers">Handlers</a> section for clarity.</p>
+<h3 id="function-redirection">Function Redirection</h3>
+<p>Upon virtualising a function, BinaryShield will replace all of the function’s original bytes with 0xCC. Without overwriting these bytes, executing said function inside of the VM would be pointless as majority of the source instructions would remain visible to anyone with a disassembler.</p>
+<p>Next, BinaryShield will create a VM trampoline jump and replace the first instructions of the target function with a JMP to the trampoline. This trampoline will push the relative virtual address (RVA) of the bytecode associated with the target function, before directing execution to a <em>ENTER</em> handler.</p>
+<p>All this is saying is that feeding the VM this specific bytecode would reproduce the original functions behaviour, effectively executing it. The following image illustrates what a function looks like after it has been redirected to the virtual machine.</p>
+<p><img src="after.png" alt=""></p>
+<h3 id="handlers">Handlers</h3>
+<p>Currently, BinaryShield contains 60+ handlers that it utilises to carry out its duties. For obvious reasons, I will restrain from naming and describing all of them. However, it would be beneficial to discuss a few of interest.</p>
+<h4 id="pushr64">PUSHR64</h4>
+<p><em>PUSHR64</em> pushes a 64-bit register onto the stack.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-asm" data-lang="asm"><span style="display:flex;"><span><span style="color:#75715e">; get the index of the virtual register
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#a6e22e">mov</span> <span style="color:#66d9ef">rax</span>, <span style="color:#66d9ef">qword</span> <span style="color:#66d9ef">ptr</span> [<span style="color:#66d9ef">r13</span>]
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">and</span> <span style="color:#66d9ef">rax</span>, <span style="color:#ae81ff">0xFF</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">inc</span> <span style="color:#66d9ef">r13</span> <span style="color:#75715e">; update VIP
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#a6e22e">mov</span> <span style="color:#66d9ef">rax</span>, <span style="color:#66d9ef">qword</span> <span style="color:#66d9ef">ptr</span> [<span style="color:#66d9ef">rsp</span><span style="color:#960050;background-color:#1e0010">+</span><span style="color:#66d9ef">rax</span>*<span style="color:#ae81ff">0x08</span>] <span style="color:#75715e">; read the value of the register to be pushed
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#a6e22e">sub</span> <span style="color:#66d9ef">r15</span>, <span style="color:#ae81ff">0x08</span> <span style="color:#75715e">; create 64-bits of space to place the register on the stack
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#a6e22e">mov</span> <span style="color:#66d9ef">qword</span> <span style="color:#66d9ef">ptr</span> [<span style="color:#66d9ef">r15</span>], <span style="color:#66d9ef">rax</span> <span style="color:#75715e">; write target register to the stack
+</span></span></span></code></pre></div><p><strong>NOTE:</strong> You may notice that multiple handlers perform their operations in a &ldquo;strange&rdquo; manner. For instance, here we are loading an entire QWORD from [r13], and using a bitmask to get only a single byte. The reason this was done is because these instructions are much easier to mutate than the complex:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-asm" data-lang="asm"><span style="display:flex;"><span><span style="color:#a6e22e">mov</span> <span style="color:#66d9ef">rax</span>, <span style="color:#66d9ef">byte</span> <span style="color:#66d9ef">ptr</span> [<span style="color:#66d9ef">r13</span>]
+</span></span></code></pre></div><p>Obviously, this isn&rsquo;t required, but will likely make implementing code mutation easier.</p>
+<h4 id="enter">ENTER</h4>
+<p>The <em>ENTER</em> handler is what every VM trampoline redirects execution flow to. It is responsible for pushing the x86-64 context onto the stack, and setting up the native register usage.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-asm" data-lang="asm"><span style="display:flex;"><span><span style="color:#75715e">; push native context onto the stack
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#a6e22e">push</span> <span style="color:#66d9ef">r15</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">push</span> <span style="color:#66d9ef">r14</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">push</span> <span style="color:#66d9ef">r13</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">push</span> <span style="color:#66d9ef">r12</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">push</span> <span style="color:#66d9ef">r11</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">push</span> <span style="color:#66d9ef">r10</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">push</span> <span style="color:#66d9ef">r9</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">push</span> <span style="color:#66d9ef">r8</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">push</span> <span style="color:#66d9ef">rbp</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">push</span> <span style="color:#66d9ef">rdi</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">push</span> <span style="color:#66d9ef">rsi</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">push</span> <span style="color:#66d9ef">rdx</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">push</span> <span style="color:#66d9ef">rcx</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">push</span> <span style="color:#66d9ef">rbx</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">push</span> <span style="color:#66d9ef">rax</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">pushfq</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">mov</span> <span style="color:#66d9ef">r15</span>, <span style="color:#66d9ef">rsp</span> <span style="color:#75715e">; save the native stack pointer in r15
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#a6e22e">sub</span> <span style="color:#66d9ef">rsp</span>, <span style="color:#ae81ff">0x100</span> <span style="color:#75715e">; allocate 0x100 bytes for the virtual context &amp; stack
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">; get the current module base
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#a6e22e">mov</span> <span style="color:#66d9ef">r14</span>, <span style="color:#66d9ef">qword</span> <span style="color:#66d9ef">ptr</span> <span style="color:#66d9ef">gs</span>:[<span style="color:#ae81ff">0x60</span>]
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">mov</span> <span style="color:#66d9ef">r14</span>, <span style="color:#66d9ef">qword</span> <span style="color:#66d9ef">ptr</span> [<span style="color:#66d9ef">r14</span><span style="color:#960050;background-color:#1e0010">+</span><span style="color:#ae81ff">0x10</span>]
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">mov</span> <span style="color:#66d9ef">qword</span> <span style="color:#66d9ef">ptr</span> [<span style="color:#66d9ef">rsp</span><span style="color:#960050;background-color:#1e0010">+</span><span style="color:#ae81ff">0x88</span>], <span style="color:#66d9ef">r14</span> <span style="color:#75715e">; store the module base in virtual register R1
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#a6e22e">mov</span> <span style="color:#66d9ef">r13d</span>, <span style="color:#66d9ef">dword</span> <span style="color:#66d9ef">ptr</span> [<span style="color:#66d9ef">r15</span><span style="color:#960050;background-color:#1e0010">+</span><span style="color:#ae81ff">0x80</span>] <span style="color:#75715e">; load bytecode rva into r13d
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">; goto next handler
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#a6e22e">add</span> <span style="color:#66d9ef">r13</span>, <span style="color:#66d9ef">r14</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">mov</span> <span style="color:#66d9ef">eax</span>, <span style="color:#66d9ef">dword</span> <span style="color:#66d9ef">ptr</span> [<span style="color:#66d9ef">r13</span>]
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">add</span> <span style="color:#66d9ef">r13</span>, <span style="color:#ae81ff">0x04</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">add</span> <span style="color:#66d9ef">rax</span>, <span style="color:#66d9ef">r14</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">jmp</span> <span style="color:#66d9ef">rax</span>
+</span></span></code></pre></div><h4 id="exit">EXIT</h4>
+<p><em>EXIT</em> is the opposite of <em>ENTER</em>. It’s job is to pop the x86-64 context off the stack and back into the native registers before exiting the VM.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-asm" data-lang="asm"><span style="display:flex;"><span><span style="color:#75715e">; restore the native context and exit VM
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#a6e22e">mov</span> <span style="color:#66d9ef">rsp</span>, <span style="color:#66d9ef">r15</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">popfq</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">pop</span> <span style="color:#66d9ef">rax</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">pop</span> <span style="color:#66d9ef">rbx</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">pop</span> <span style="color:#66d9ef">rcx</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">pop</span> <span style="color:#66d9ef">rdx</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">pop</span> <span style="color:#66d9ef">rsi</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">pop</span> <span style="color:#66d9ef">rdi</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">pop</span> <span style="color:#66d9ef">rbp</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">pop</span> <span style="color:#66d9ef">r8</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">pop</span> <span style="color:#66d9ef">r9</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">pop</span> <span style="color:#66d9ef">r10</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">pop</span> <span style="color:#66d9ef">r11</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">pop</span> <span style="color:#66d9ef">r12</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">pop</span> <span style="color:#66d9ef">r13</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">pop</span> <span style="color:#66d9ef">r14</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">pop</span> <span style="color:#66d9ef">r15</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">ret</span>
+</span></span></code></pre></div><h4 id="jne">JNE</h4>
+<p><em>JNE</em>, or Jump If Not Equal, will check if the zero flag (ZF) is equal to 0. If so, it will update r13, the VIP.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-asm" data-lang="asm"><span style="display:flex;"><span><span style="color:#a6e22e">mov</span> <span style="color:#66d9ef">eax</span>, <span style="color:#66d9ef">dword</span> <span style="color:#66d9ef">ptr</span> [<span style="color:#66d9ef">r13</span>] <span style="color:#75715e">; load rva of destination instruction&#39;s bytecode
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#a6e22e">add</span> <span style="color:#66d9ef">r13</span>, <span style="color:#ae81ff">0x04</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">add</span> <span style="color:#66d9ef">rax</span>, <span style="color:#66d9ef">r14</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">; pop RFLAGS off the virtual stack
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#a6e22e">push</span> <span style="color:#66d9ef">qword</span> <span style="color:#66d9ef">ptr</span> [<span style="color:#66d9ef">r15</span>]
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">popfq</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">lea</span> <span style="color:#66d9ef">r15</span>, <span style="color:#66d9ef">qword</span> <span style="color:#66d9ef">ptr</span> [<span style="color:#66d9ef">r15</span><span style="color:#960050;background-color:#1e0010">+</span><span style="color:#ae81ff">0x08</span>]
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">cmovne</span> <span style="color:#66d9ef">r13</span>, <span style="color:#66d9ef">rax</span> <span style="color:#75715e">; if ZF=0, update VIP, else move to the next instruction
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">; goto next handler
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#a6e22e">mov</span> <span style="color:#66d9ef">eax</span>, <span style="color:#66d9ef">dword</span> <span style="color:#66d9ef">ptr</span> [<span style="color:#66d9ef">r13</span>]
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">add</span> <span style="color:#66d9ef">r13</span>, <span style="color:#ae81ff">0x04</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">add</span> <span style="color:#66d9ef">rax</span>, <span style="color:#66d9ef">r14</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">jmp</span> <span style="color:#66d9ef">rax</span>
+</span></span></code></pre></div><h4 id="add64">ADD64</h4>
+<p><em>ADD64</em> adds the top most 64-bit elements on the virtual stack. It, similar to other arithmietc operations, will push the results and rflags onto the stack.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-asm" data-lang="asm"><span style="display:flex;"><span><span style="color:#a6e22e">mov</span> <span style="color:#66d9ef">rax</span>, <span style="color:#66d9ef">qword</span> <span style="color:#66d9ef">ptr</span> [<span style="color:#66d9ef">r15</span>] <span style="color:#75715e">; move into rax the first operand
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#a6e22e">add</span> <span style="color:#66d9ef">qword</span> <span style="color:#66d9ef">ptr</span> [<span style="color:#66d9ef">r15</span><span style="color:#960050;background-color:#1e0010">+</span><span style="color:#ae81ff">0x08</span>] <span style="color:#75715e">; add the first operand to the second operand
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">; push RFLAGS onto the virtual stack
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#a6e22e">pushfq</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">pop</span> <span style="color:#66d9ef">qword</span> <span style="color:#66d9ef">ptr</span> [<span style="color:#66d9ef">r15</span>]
+</span></span><span style="display:flex;"><span><span style="color:#75715e">; goto next handler
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#a6e22e">mov</span> <span style="color:#66d9ef">eax</span>, <span style="color:#66d9ef">dword</span> <span style="color:#66d9ef">ptr</span> [<span style="color:#66d9ef">r13</span>]
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">add</span> <span style="color:#66d9ef">r13</span>, <span style="color:#ae81ff">0x04</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">add</span> <span style="color:#66d9ef">rax</span>, <span style="color:#66d9ef">r14</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">jmp</span> <span style="color:#66d9ef">rax</span>
+</span></span></code></pre></div><h1 id="final-words">Final Words</h1>
+<p>Even in its early development phase, BinaryShield has demonstrated the ability to protect various functions from reverse engineering attempts. There&rsquo;s still much more to come, including handler mutation, bytecode encryption, and support for multiple VM handler instances. I welcome any feedback, suggestions, or contributions to the <a href="https://github.com/connorjaydunn/BinaryShield">project</a>. If you&rsquo;re interested in testing your skills, you can download a crackme protected by BinaryShield <a href="crackme.zip">here</a>.</p>
+</div>
+    </article>
+  </main>
+
+      </div>
+      <footer>
+  <hr />
+  
+    <p id="social">
+      Find me around the web:
+      <br />
+      
+        
+        <a href="https://github.com/connorjaydunn">GitHub</a>
+      
+    </p>
+  
+  <p class="copyright">
+    Copyright © 2024
+    <a href="https://connorjaydunn.github.io/blog/"><strong>Connor-Jay</strong></a>.
+    This work is licensed under the
+    <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> license.
+</footer>
+
+    </div>
+  </body>
+</html>
