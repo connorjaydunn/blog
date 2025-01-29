@@ -140,7 +140,7 @@
 <hr>
 <p><em><strong>NOTE:</strong></em> These offsets are for 64-bit machines.</p>
 <h3 id="cpuid">CPUID</h3>
-<p>The <a href="%22https://www.felixcloutier.com/x86/cpuid%22">CPUID</a> instruction is used to retrieve details about the processor. This is probably the most common method Denuvo uses to collect hardware information. And as will be shown later, great lengths are taken in order to protect its execution from tampering.</p>
+<p>The <a href="https://www.felixcloutier.com/x86/cpuid">CPUID</a> instruction is used to retrieve details about the processor. This is probably the most common method Denuvo uses to collect hardware information. And as will be shown later, great lengths are taken in order to protect its execution from tampering.</p>
 <p>Denuvo makes use of the following parameters:</p>
 <hr>
 <ul>
@@ -162,7 +162,7 @@
 <h4 id="ntdll-function-checks">NTDLL Function Checks</h4>
 <p>I didn&rsquo;t look as deep into this as I should have. But it appears that Denuvo will identify the user based on bytes of certain functions located with ntdll.dll and their relative virtual address (RVA).</p>
 <h4 id="ntdll-image-data-directory">NTDLL Image Data Directory</h4>
-<p>As stated previously, ntdll.dll typically changes slightly per Windows Update / Version, so it makes sense why Denuvo would target its <a href="%22https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-image_data_directory%22">Image Data Directory</a>. To be specific, the following fields are accessed:</p>
+<p>As stated previously, ntdll.dll typically changes slightly per Windows Update / Version, so it makes sense why Denuvo would target its <a href="https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-image_data_directory">Image Data Directory</a>. To be specific, the following fields are accessed:</p>
 <hr>
 <ul>
 <li>Export Directory RVA</li>
