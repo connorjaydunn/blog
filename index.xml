@@ -6,8 +6,15 @@
     <description>Recent content on Connor-Jay&#39;s Blog</description>
     <generator>Hugo</generator>
     <language>en-us</language>
-    <lastBuildDate>Tue, 18 Mar 2025 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Thu, 14 Aug 2025 00:00:00 +0000</lastBuildDate>
     <atom:link href="https://connorjaydunn.github.io/blog/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>xssprober: Blazing-Fast XSS Detection</title>
+      <link>https://connorjaydunn.github.io/blog/posts/xssprober-blazing-fast-xss-detection/</link>
+      <pubDate>Thu, 14 Aug 2025 00:00:00 +0000</pubDate>
+      <guid>https://connorjaydunn.github.io/blog/posts/xssprober-blazing-fast-xss-detection/</guid>
+      <description>DISCLAIMER The information provided in this post is intended solely for educational purposes. The author assumes no responsibility or liability for any misuse, or unlawful activity resulting from the use of the information described herein.&#xA;What is Cross-Site Scripting Cross-Site Scripting (XSS) is arguably one of the easiest web exploits to understand, which is why it&amp;rsquo;s often among the first vulnerabilities cybersecurity enthusiasts encounter. In a nutshell, XSS occurs when a web application accepts user-supplied input and renders it on a page without properly escaping or sanitizing it.</description>
+    </item>
     <item>
       <title>fexploit: Unauthorised FEX.NET Downloads</title>
       <link>https://connorjaydunn.github.io/blog/posts/fexploit-unauthorised-fex-net-downloads/</link>

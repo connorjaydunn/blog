@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body, {delimiters: [
+      {left: '$$', right: '$$', display: true},
+      {left: '$', right: '$', display: false}
+    ]});">
+</script>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="" />
+
+  
+    
+      <title>xssprober: Blazing-Fast XSS Detection | Connor-Jay&#39;s Blog</title>
+    
+  
+
+  <link rel="stylesheet" href="/blog/css/reset.css"/>
+  <link rel="stylesheet" href="/blog/css/font.css"/>
+  <link rel="stylesheet" href="/blog/css/smigle.css"/>
+  
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/favicon-16x16.png">
+  <link rel="manifest" href="/blog/site.webmanifest">
+  <link rel="mask-icon" href="/blog/safari-pinned-tab.svg" color="#5bbad5">
+  <meta name="msapplication-TileColor" content="#da532c">
+  <meta name="theme-color" content="#ffffff">
+</head>
+  <body>
+    <div id="root">
+      <header>
+  <div id="brand">
+    <a class="icon-link" href="https://connorjaydunn.github.io/blog/">
+      <img
+        class="icon"
+        src="/blog/images/avatar.png"
+      />
+    </a>
+    <div class="text">
+      <a href="https://connorjaydunn.github.io/blog/"><h1>Connor-Jay&#39;s Blog</h1></a>
+      <h3>A 3rd Year Computer Science Student</h3>
+    </div>
+  </div>
+  <nav>
+    
+      
+        
+        <a href="/blog/"><b>Home</b></a>
+      
+         | 
+        <a href="/blog/about/"><b>About</b></a>
+      
+         | 
+        <a href="/blog/posts/"><b>Posts</b></a>
+      
+    
+  </nav>
+  <hr />
+</header>
+
+      <div id="content">
+        
+  <main>
+    <article>
+      <h1 class="title">xssprober: Blazing-Fast XSS Detection</h1>
+      
+      <div class="post-meta">
+  <strong>
+    <span>Posted on</span>
+    <time>2025-08-14</time>
+    
+    
+  </strong>
+  <span> • 2004 words</span>
+  <span> • 10 minute read</span>
+  
+  
+</div>
+
+      <div class="content"><h1 id="disclaimer">DISCLAIMER</h1>
+<p>The information provided in this post is intended solely for <strong>educational purposes</strong>. The author assumes no responsibility or liability for any misuse, or unlawful activity resulting from the use of the information described herein.</p>
+<h1 id="what-is-cross-site-scripting">What is Cross-Site Scripting</h1>
+<p><em>Cross-Site Scripting</em> (XSS) is arguably one of the easiest web exploits to understand, which is why it&rsquo;s often among the first vulnerabilities cybersecurity enthusiasts encounter. In a nutshell, XSS occurs when a web application accepts user-supplied input and renders it on a page without properly escaping or sanitizing it. This oversight enables attackers to inject malicious JavaScript that executes in the victim&rsquo;s browser.</p>
+<p>There exist three primary types of XSS, namely: <strong>Reflected</strong>, <strong>Stored</strong>, <strong>DOM-Based</strong>. We will now provide a detailed example of reflected XSS.</p>
+<p>If you&rsquo;re interested in learning more regarding XSS vulnerabilities, <a href="https://en.wikipedia.org/wiki/Cross-site_scripting">click here</a>.</p>
+<h2 id="reflected-xss">Reflected XSS</h2>
+<p><em>Reflected XSS</em> occurs when malicious input from a user is immediately &ldquo;reflected&rdquo; by a web application back to the browser without proper validation or escaping. This input is often included as a query parameter in a URL, but it can also come from a form submission or other user-supplied data.</p>
+<h3 id="example">Example</h3>
+<p>Consider a search feature on a website that shows the search term in the results page. Furthermore, suppose the search term is passed to the web application via the query parameter, <em>q</em>. Thus, we could consider the following URL:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>https://example.com/search?q<span style="color:#f92672">=</span>dogs
+</span></span></code></pre></div><p>To yield the following response:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-html" data-lang="html"><span style="display:flex;"><span>&lt;<span style="color:#f92672">html</span>&gt;
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">&lt;!-- omitted for brevity --&gt;</span>
+</span></span><span style="display:flex;"><span>    &lt;<span style="color:#f92672">h2</span>&gt;Search Results For: dogs&lt;/<span style="color:#f92672">h2</span>&gt;
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">&lt;!-- omitted for brevity --&gt;</span>
+</span></span><span style="display:flex;"><span>&lt;/<span style="color:#f92672">html</span>&gt;
+</span></span></code></pre></div><p>If the application does not properly sanitize the query parameter <em>q</em>, an attacker could craft a URL with malicious input. For example:</p>
+<pre tabindex="0"><code>https://example.com/search?q=&gt;&lt;script&gt;alert(&#34;XSS&#34;)&lt;/script&gt;
+</code></pre><p>Then, we expect the following response:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-html" data-lang="html"><span style="display:flex;"><span>&lt;<span style="color:#f92672">html</span>&gt;
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">&lt;!-- omitted for brevity --&gt;</span>
+</span></span><span style="display:flex;"><span>    &lt;<span style="color:#f92672">h2</span>&gt;Search Results For: &gt;&lt;<span style="color:#f92672">script</span>&gt;<span style="color:#a6e22e">alert</span>(<span style="color:#e6db74">&#34;XSS&#34;</span>)&lt;/<span style="color:#f92672">script</span>&gt;&lt;/<span style="color:#f92672">h2</span>&gt;
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">&lt;!-- omitted for brevity --&gt;</span>
+</span></span><span style="display:flex;"><span>&lt;/<span style="color:#f92672">html</span>&gt;
+</span></span></code></pre></div><p>In this case, the attacker&rsquo;s input closes the &lt;h2&gt; tag prematurely (&gt;), and the &lt;script&gt; tag executes JavaScript in the user&rsquo;s browser.</p>
+<h1 id="automated-detection-of-xss">Automated Detection of XSS</h1>
+<p>Manually testing for XSS vulnerabilities can be tedious, particularly in large web applications with dozens or even hundreds of input fields. Fortunately, XSS is relatively easy to detect using automated tools. Scanners can quickly inject payloads and identify unescaped input reflections that may allow malicious JavaScript to execute.</p>
+<h2 id="a-simple-xss-detection-algorithm">A Simple XSS Detection Algorithm</h2>
+<p>Currently available XSS scanners typically feature the following key stages:</p>
+<p><strong>(1)</strong> <strong>Crawling the Web Application</strong></p>
+<p>This stage involves discovering all available URLs, forms, and input fields that accept user-supplied data.</p>
+<p><strong>(2)</strong> <strong>Injecting Payloads</strong></p>
+<p>For each input field, the scanner injects a series of XSS payloads. These payloads are designed to test how the web application handles potentially malicious input. Some example payloads being:</p>
+<ul>
+<li><code>&quot;x'y&lt;/iMg</code></li>
+<li><code>&amp;lt;script&amp;gt;alert(1)&amp;lt;/script&amp;gt;</code></li>
+<li><code>&amp;lt;img src=x onerror=alert(1)&amp;gt;</code></li>
+</ul>
+<p><strong>(3)</strong> <strong>Monitoring the Response</strong></p>
+<p>After submitting a payload, the scanner will analyse the http response to determine if the payload executed in the browser. For reflected XSS, this usually involves checking if the payload appears unsanitized in the returned html.</p>
+<h2 id="current-tooling">Current Tooling</h2>
+<p>There are already countless open-source tools for detecting XSS vulnerabilities, namely:</p>
+<ul>
+<li><a href="https://github.com/s0md3v/XSStrike">XSStrike</a></li>
+<li><a href="https://github.com/DanMcInerney/xsscrapy">xsscrapy</a></li>
+<li><a href="https://github.com/faizann24/XssPy">XssPy</a></li>
+</ul>
+<p>A quick glance at their source will reveal that they more or less implement the algorithm detailed <a href="#a-simple-xss-detection-algorithm">above</a>.</p>
+<h2 id="limitations-of-current-tooling">Limitations of Current Tooling</h2>
+<p>Although the currently available tools are extremely powerful, they are not without their drawbacks. The main bottleneck I discovered whilst using them is speed. Most scanners will test input fields <strong>one parameter at a time</strong>, sending individual requests for every payload against every field. Therefore, the total scan time can be well approximated by:</p>
+<p>$$ \text{scan\_time} \approx (\text{req\_time} \cdot \text{payload\_num}) \cdot (\text{hidden\_param\_num} + \text{exposed\_param\_num}) $$</p>
+<p>Where:</p>
+<ul>
+<li><strong>scan_time</strong> := the total time to complete the scan(s),</li>
+<li><strong>req_time</strong> := the average round-trip time for a single http request(s),</li>
+<li><strong>payload_num</strong> := the number of probes tested per parameter,</li>
+<li><strong>hidden_param_num</strong> := the number of hidden parameters to test</li>
+<li><strong>exposed_param_num</strong> the number of visible parameters to test.</li>
+</ul>
+<p>This approximation shows that the total scan time grows <strong>linearly</strong> with both the number of parameters and payloads. This doesn&rsquo;t scale well. In large web applications with hundreds of endpoints and dozens of input fields, or user&rsquo;s wishing to &ldquo;mass scan&rdquo; multiple targets, this approach can quickly become time-consuming.</p>
+<p>Additionally, just the sheer amount of network traffic generated by these scanners alone can easily result in the triggering of a <em>Web Application Firewall</em> (WAF) or other security mechanisms. In fact, a lot of bug bounty programs completely ban the use of automated detection tools for this very reason.</p>
+<p>This brings us to the main point of this blog post, <strong>xssprober</strong>.</p>
+<h1 id="xssprober">xssprober</h1>
+<p><em>xssprober</em> is an open-source penetration testing tool designed to automate the detection of XSS vulnerabilities. The primary philosophy of xssprober is to scan as much as possible, as quickly as possible. It attains this goal via techniques such as <strong>Asynchronous Programming</strong> and <strong>Single-Request-Muti-Parameter-Probing</strong> (more on this shortly). Results obtained from xssprober can be piped into &ldquo;heavier&rdquo; tooling such as <a href="https://github.com/s0md3v/XSStrike">XSStrike</a>. xssprober only detects vulnerabilities, it will <strong>not</strong> exploit them.</p>
+<p>You can access the source code of xssprober <a href="https://github.com/connorjaydunn/xssprober">here</a>.</p>
+<h2 id="single-request-multi-parameter-probing">Single Request Multi Parameter Probing</h2>
+<p>A key feature in xssprober is its ability to probe multiple parameters simultaneously with a single http request, rather than iterating over one parameter at a time. This technique will be referred to as <em>Single Request Multi Parameter Probing</em> (SRMPP). We will now cover an example scan, detailing how xssprober utilises SRMPP.</p>
+<h3 id="example-1">Example</h3>
+<p>Consider a search feature on a website that enables the user to input various query parameters to aid in shortening the number of results. In this case, let&rsquo;s assume the website uses and exposes the following query parameters:</p>
+<ul>
+<li><em>q</em> := The main query string (e.g. a product name),</li>
+<li><em>category</em> := Filter results down to a specific category (e.g. &ldquo;books&rdquo;),</li>
+<li><em>sort</em> := A parameter to sort the results (e.g. &ldquo;price-acs&rdquo;).</li>
+</ul>
+<p><strong>(1)</strong> <strong>Stage 1</strong></p>
+<p>First, xssprober will identify the three query parameters and for each payload, produce a unique version of said payload per parameter. This information is stored in a dictionary, namely:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>payload_to_param <span style="color:#f92672">=</span> 
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;q&#34;</span>:        <span style="color:#e6db74">&#34;x&#39;y&lt;/iMguIjanHeQ&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;category&#34;</span>: <span style="color:#e6db74">&#34;x&#39;y&lt;/iMglOmJsEey&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;sort&#34;</span>:     <span style="color:#e6db74">&#34;x&#39;y&lt;/iMgkAmwkfhs&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;limit&#34;</span>:    <span style="color:#e6db74">&#34;x&#39;y&lt;/iMgaJaaUirk&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;filter&#34;</span>:   <span style="color:#e6db74">&#34;x&#39;y&lt;/iMgLoakwpda&#34;</span>,
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p><strong>NOTE:</strong> It is important to notice that xssprober has also appended two potential &ldquo;hidden&rdquo; parameters: <em>limit</em> and <em>filter</em>. These parameters may exist on the &ldquo;backend&rdquo; of the site, but are not exposed in any documentation or html.</p>
+<p><strong>(2)</strong> <strong>Stage 2</strong></p>
+<p>Next, xssprober will construct a new URL featuring the injected parameter values and send this to the web application:</p>
+<pre tabindex="0"><code>https://example.com/search?q=x&#39;y&lt;/iMguIjanHeQ&amp;category=x&#39;y&lt;/iMglOmJsEey&amp;sort=x&#39;y&lt;/iMgkAmwkfhs&amp;limit=x&#39;y&lt;/iMgaJaaUirk&amp;filter=x&#39;y&lt;/iMgLoakwpda
+</code></pre><p><strong>(3)</strong> <strong>Stage 3</strong></p>
+<p>Once the web application has responded, xssprober will scan said response for instances of the injected payloads. If any such instance is found, xssprober will refer to its mapping table (<em>payload_to_param</em>) to find which parameter was responsible for the reflection and log it as potentially vulnerable to XSS.</p>
+<p>If it wasn&rsquo;t already clear, this identifies potential XSS vectors because if the payload/probe wasn&rsquo;t escaped or tampered with in some way, xssprober will find it somewhere in the web application&rsquo;s response. For example, consider the following html:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-html" data-lang="html"><span style="display:flex;"><span>&lt;<span style="color:#f92672">html</span>&gt;
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">&lt;!-- omitted for brevity --&gt;</span>
+</span></span><span style="display:flex;"><span>    &lt;<span style="color:#f92672">title</span>&gt;Search Results For: x&#39;y&amp;#60;/iMguIjanHeQ&lt;/<span style="color:#f92672">title</span>&gt;
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">&lt;!-- omitted for brevity --&gt;</span>
+</span></span><span style="display:flex;"><span>    &lt;<span style="color:#f92672">h2</span>&gt;Category: x&#39;y<span style="color:#960050;background-color:#1e0010">&lt;</span>/iMglOmJsEey&lt;/<span style="color:#f92672">h2</span>&gt;
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">&lt;!-- omitted for brevity --&gt;</span>
+</span></span><span style="display:flex;"><span>&lt;/<span style="color:#f92672">html</span>&gt;
+</span></span></code></pre></div><p>Observe that only the parameters <em>q</em> and <em>category</em> were reflected. Furthermore, notice that parameter <em>q</em> was html-encoded, whereas <em>category</em> was not. Thus, <em>category</em> is a prime candidate for XSS, and xssprober will identify this.</p>
+<h2 id="scan-time-approximation">Scan Time Approximation</h2>
+<p>It should be intuitive to realise that xssprober already beats the currently available tooling (e.g. XSStrike) in terms of scan speed on an order of magnitudes. However, similar to the approximation we made regarding the scan time of &ldquo;traditional&rdquo; tools (<a href="#limitations-of-current-tooling">here</a>), we can make a similar approximation for the scan time of xssprober:</p>
+<p>$$ \text{scan\_time} \approx \text{payload\_num} \cdot \text{req\_time} $$</p>
+<p>Where:</p>
+<ul>
+<li><strong>scan_time</strong> := the total time to complete the scan(s),</li>
+<li><strong>req_time</strong> := the average round-trip time for a single http request(s),</li>
+<li><strong>payload_num</strong> := the number of probes tested per parameter.</li>
+</ul>
+<p>Thus, xssprober&rsquo;s scan time is <strong>independent</strong> of the number of parameters. This implies that xssprober will scale well whenever a large number of parameters are present (e.g. a large number of hidden parameters).</p>
+<h2 id="disadvantages">Disadvantages</h2>
+<p>So far, we&rsquo;ve treated xssprober as if it were the &ldquo;holy grail&rdquo; of XSS detection. In reality, it is just doing simple input reflection detection. I will now list two primary issues regarding xssprober&rsquo;s approach:</p>
+<p><strong>(1)</strong> Undefined Website Behaviour</p>
+<p>Injecting input payloads into request parameters often leads to <strong>unpredictable behaviour</strong>. For instance:</p>
+<ul>
+<li>4xx-5xx status codes</li>
+<li>Redirections</li>
+<li>etc</li>
+</ul>
+<p>Furthermore, some of these issues may only occur on certain parameters. Therefore, testing all parameters within a single http request, as per SRMPP, could result in xssprober missing XSS vulnerabilities. This could be mitigated by either comparing results to a baseline (still risky however), or falling back to traditional methods (e.g. testing one parameter at a time).</p>
+<p><strong>(2)</strong> Not Context-Aware</p>
+<p>As of writing this post, xssprober features no &ldquo;context-awareness&rdquo; as it is based on finding unescaped payloads in the html response. This means it has no idea if the reflection is in a position where escaping &ldquo;rules&rdquo; differ, or if there is some clever payload which can execute despite being sanitized by the web application.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>Overall, I believe xssprober is a valuable tool for anyone looking to quickly scan multiple targets at scale. I’ve personally leveraged its speed for exactly this purpose. It’s also well-suited for those interested in discovering XSS vulnerabilities in hidden parameters, as xssprober can probe as many parameters as the target web application will accept in a single http request.</p>
+<p>If you&rsquo;ve read this far, thank you for your time and interest. Also, if you have any feedback, feel free to make a <a href="https://github.com/connorjaydunn/xssprober">pull request</a> or <a href="mailto:connorjay.dunn@outlook.com">email me</a>.</p>
+<h1 id="examples-from-the-wild">Examples From The Wild</h1>
+<p>In this section, we will cover some real-world XSS vulnerabilities discovered by xssprober.</p>
+<h1 id="university-of-stirling">University of Stirling</h1>
+<h2 id="overview">Overview</h2>
+<p><strong>- Vulnerable URL:</strong> <a href="https://portal.stir.ac.uk/servlet/myportal">https://portal.stir.ac.uk/servlet/myportal</a></p>
+<p><strong>- Vulnerable Parameter:</strong> message</p>
+<p><strong>- PoC Payload:</strong></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-html" data-lang="html"><span style="display:flex;"><span>&lt;<span style="color:#f92672">script</span>&gt;<span style="color:#a6e22e">alert</span>(<span style="color:#e6db74">&#34;XSS&#34;</span>)&lt;/<span style="color:#f92672">script</span>&gt;
+</span></span></code></pre></div><h2 id="walkthrough">Walkthrough</h2>
+<p>xssprober successfully identified the <em><strong>hidden</strong></em> parameter <em>message</em>. Furthermore, it discovered that the value of <em>message</em> was reflected directly in the html response <em><strong>without any validation or sanitization</strong></em>:</p>
+<p align="center">
+  <img src="uni_of_stirling_xss/param_reflect.PNG">
+</p>
+<p>Inspecting the page source, we see that the <em>message</em> parameter is reflected inside a &lt;div&gt; tag:</p>
+<p align="center">
+  <img src="uni_of_stirling_xss/param_reflect_source.PNG">
+</p>
+<p>Since the parameter is placed directly within the div, we can safely inject a &lt;script&gt; tag into <em>message</em> without breaking any html structure or needing to escape any parenting html tags:</p>
+<p align="center">
+  <img src="uni_of_stirling_xss/injected_payload_source.PNG">
+</p>
+<p>After injecting the payload, rendering the page in a browser confirms successful execution of our JavaScript:</p>
+<p align="center">
+  <img src="uni_of_stirling_xss/poc.PNG">
+</p>
+<h2 id="timeline">Timeline</h2>
+<ul>
+<li>13/08/2025 Vulnerability Discovered</li>
+<li>13/08/2025 Vulnerability Disclosure</li>
+<li>14/08/2025 Vulnerability Fixed</li>
+</ul>
+<h1 id="wolfram-alpha">Wolfram Alpha</h1>
+<h2 id="overview-1">Overview</h2>
+<p><strong>- Vulnerable URL:</strong> <a href="https://reference.wolfram.com/language/ref/Limit.html">https://reference.wolfram.com/language/ref/Limit.html</a></p>
+<p><strong>- Vulnerable Parameter:</strong> q</p>
+<p><strong>- PoC Payload:</strong></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-html" data-lang="html"><span style="display:flex;"><span>&lt;/<span style="color:#f92672">a</span>&gt;&lt;<span style="color:#f92672">script</span>&gt;<span style="color:#a6e22e">alert</span>(<span style="color:#e6db74">&#34;XSS&#34;</span>)&lt;/<span style="color:#f92672">script</span>&gt;
+</span></span></code></pre></div><h1 id="walkthrough-1">Walkthrough</h1>
+<p>xssprober discovered that the value of parameter <em>q</em> was reflected directly in the html response <em><strong>without any validation or sanitization</strong></em>:</p>
+<p align="center">
+  <img src="wolframalpha_xss/param_reflect.PNG">
+</p>
+<p>Inspecting the page source, we see that the <em>q</em> parameter is reflected twice inside a &lt;a&gt; tag:</p>
+<p align="center">
+  <img src="wolframalpha_xss/param_reflect_source.PNG">
+</p>
+<p>Because our input is placed within an &lt;a&gt; tag, we must first escape it via closing the anchor tag prematurely. Then, we may inject a &lt;script&gt; tag to execute JavaScript code:</p>
+<p align="center">
+  <img src="wolframalpha_xss/injected_payload_source.PNG">
+</p>
+<p><strong>NOTE:</strong> In retrospect, the escaping of the anchor tag should have used a simple closing angle bracket. But this worked regardless.</p>
+<p>After injecting the payload, rendering the page in a browser confirms successful execution of our JavaScript:</p>
+<p align="center">
+  <img src="wolframalpha_xss/poc.PNG">
+</p>
+<h2 id="timeline-1">Timeline</h2>
+<ul>
+<li>11/07/2025 Vulnerability Discovered</li>
+<li>11/07/2025 Vulnerability Disclosure</li>
+<li>14/07/2025 Vulnerability Fixed</li>
+</ul>
+<h1 id="united-states-department-of-agriculture-usda">United States Department of Agriculture (USDA)</h1>
+<h2 id="overview-2">Overview</h2>
+<p><strong>- Vulnerable URL:</strong> <a href="https://www.nrs.fs.usda.gov/pubs/search.asp">https://www.nrs.fs.usda.gov/pubs/search.asp</a></p>
+<p><strong>- Vulnerable Parameter:</strong> query</p>
+<p><strong>- PoC Payload:</strong></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-html" data-lang="html"><span style="display:flex;"><span>&lt;/<span style="color:#f92672">title</span>&gt;&lt;<span style="color:#f92672">script</span>&gt;<span style="color:#a6e22e">alert</span>(<span style="color:#e6db74">&#34;xss&#34;</span>)&lt;/<span style="color:#f92672">script</span>&gt;
+</span></span></code></pre></div><h2 id="walkthrough-2">Walkthrough</h2>
+<p>Unfortunately, I don&rsquo;t have the original source code to provide a clear walkthrough like the other two examples. Also, usda.gov&rsquo;s resolution to the exploit was to remove the /search.asp endpoint completely. However, we can reverse engineer the exploit from the payload. Therefore, consider the following html:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-html" data-lang="html"><span style="display:flex;"><span>&lt;<span style="color:#f92672">html</span>&gt;
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">&lt;!-- omitted for brevity --&gt;</span>
+</span></span><span style="display:flex;"><span>    &lt;<span style="color:#f92672">title</span>&gt;Search for [insert_query_value_here]&lt;/<span style="color:#f92672">title</span>&gt;
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">&lt;!-- omitted for brevity --&gt;</span>
+</span></span><span style="display:flex;"><span>&lt;/<span style="color:#f92672">html</span>&gt;
+</span></span></code></pre></div><p>Where &ldquo;[insert_query_value_here]&rdquo; is of course whatever value we provided via the query parameter <em>query</em>. Thus, we can simply close the title tag early and insert a script tag, yielding the following html:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-html" data-lang="html"><span style="display:flex;"><span>&lt;<span style="color:#f92672">html</span>&gt;
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">&lt;!-- omitted for brevity --&gt;</span>
+</span></span><span style="display:flex;"><span>    &lt;<span style="color:#f92672">title</span>&gt;Search for &lt;/<span style="color:#f92672">title</span>&gt;&lt;<span style="color:#f92672">script</span>&gt;<span style="color:#a6e22e">alert</span>(<span style="color:#e6db74">&#34;xss&#34;</span>)&lt;/<span style="color:#f92672">script</span>&gt;&lt;/<span style="color:#f92672">title</span>&gt;
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">&lt;!-- omitted for brevity --&gt;</span>
+</span></span><span style="display:flex;"><span>&lt;/<span style="color:#f92672">html</span>&gt;
+</span></span></code></pre></div><p>Injecting <em>query</em> and rendering the page in a browser, we see that our JavaScript was executed:</p>
+<p align="center">
+  <img src="usda/poc.PNG">
+</p>
+<h2 id="timeline-2">Timeline</h2>
+<ul>
+<li>12/07/2025 Vulnerability Discovered</li>
+<li>12/07/2025 <a href="https://bugcrowd.com/engagements/usda-vdp">Vulnerability Disclosure</a></li>
+<li>16/07/2025 Vulnerability Fixed</li>
+</ul>
+</div>
+    </article>
+  </main>
+
+      </div>
+      <footer>
+  <hr />
+  
+    <p id="social">
+      Find me around the web:
+      <br />
+      
+        
+        <a href="https://github.com/connorjaydunn">GitHub</a>
+      
+    </p>
+  
+  <p class="copyright">
+    Copyright © 2025
+    <a href="https://connorjaydunn.github.io/blog/"><strong>Connor-Jay</strong></a>.
+    This work is licensed under the
+    <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> license.
+</footer>
+
+    </div>
+  </body>
+</html>
