@@ -2,52 +2,52 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Connor-Jay&#39;s Blog</title>
-    <link>http://localhost:1313/blog/</link>
+    <link>https://connorjaydunn.github.io/blog/</link>
     <description>Recent content on Connor-Jay&#39;s Blog</description>
     <generator>Hugo</generator>
     <language>en-us</language>
     <lastBuildDate>Thu, 14 Aug 2025 00:00:00 +0000</lastBuildDate>
-    <atom:link href="http://localhost:1313/blog/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="https://connorjaydunn.github.io/blog/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>xssprober: Blazing-Fast XSS Detection</title>
-      <link>http://localhost:1313/blog/posts/xssprober-blazing-fast-xss-detection/</link>
+      <link>https://connorjaydunn.github.io/blog/posts/xssprober-blazing-fast-xss-detection/</link>
       <pubDate>Thu, 14 Aug 2025 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/blog/posts/xssprober-blazing-fast-xss-detection/</guid>
+      <guid>https://connorjaydunn.github.io/blog/posts/xssprober-blazing-fast-xss-detection/</guid>
       <description>DISCLAIMER The information provided in this post is intended solely for educational purposes. The author assumes no responsibility or liability for any misuse, or unlawful activity resulting from the use of the information described herein.&#xA;What is Cross-Site Scripting Cross-Site Scripting (XSS) is arguably one of the easiest web exploits to understand, which is why it&amp;rsquo;s often among the first vulnerabilities cybersecurity enthusiasts encounter. In a nutshell, XSS occurs when a web application accepts user-supplied input and renders it on a page without properly escaping or sanitizing it.</description>
     </item>
     <item>
       <title>fexploit: Unauthorised FEX.NET Downloads</title>
-      <link>http://localhost:1313/blog/posts/fexploit-unauthorised-fex-net-downloads/</link>
+      <link>https://connorjaydunn.github.io/blog/posts/fexploit-unauthorised-fex-net-downloads/</link>
       <pubDate>Tue, 18 Mar 2025 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/blog/posts/fexploit-unauthorised-fex-net-downloads/</guid>
+      <guid>https://connorjaydunn.github.io/blog/posts/fexploit-unauthorised-fex-net-downloads/</guid>
       <description>FEX.NET FEX.NET, hereafter referred to as &amp;ldquo;FexNet,&amp;rdquo; is a cloud storage and file transfer service based in Ukraine, offering users the ability to store and share files online. FexNet shares many similarities with typical file-sharing platforms, it provides users with the option to create accounts, purchase storage space, and upload files for a specified duration. Like its competitors, FexNet also offers security features to protect users&amp;rsquo; files. However, this blog post will focus on the security aspects of the platform, which, in reality, provide little to no protection at all in majority of cases.</description>
     </item>
     <item>
       <title>Denuvo Analysis</title>
-      <link>http://localhost:1313/blog/posts/denuvo-analysis/</link>
+      <link>https://connorjaydunn.github.io/blog/posts/denuvo-analysis/</link>
       <pubDate>Tue, 21 Jan 2025 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/blog/posts/denuvo-analysis/</guid>
+      <guid>https://connorjaydunn.github.io/blog/posts/denuvo-analysis/</guid>
       <description>Foreword This post is intended for educational purposes only. Denuvo is arguably the most successful digital rights management solution to have ever existed, and is therefore an interest to many. This blog contains a large amount of my personal notes and correspondence with other reverse engineers (see kudos) which contains information about the recent iterations of Denuvo, lots of which I haven&amp;rsquo;t seen shared publicly before.&#xA;I mean no harm towards Irdeto and thus certain information will be redacted from this post.</description>
     </item>
     <item>
       <title>BinaryShield: a bin2bin x86-64 code virtualizer</title>
-      <link>http://localhost:1313/blog/posts/binaryshield-a-bin2bin-x86-64-code-virtualizer/</link>
+      <link>https://connorjaydunn.github.io/blog/posts/binaryshield-a-bin2bin-x86-64-code-virtualizer/</link>
       <pubDate>Mon, 23 Sep 2024 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/blog/posts/binaryshield-a-bin2bin-x86-64-code-virtualizer/</guid>
+      <guid>https://connorjaydunn.github.io/blog/posts/binaryshield-a-bin2bin-x86-64-code-virtualizer/</guid>
       <description>The purpose of this post is primarily to explain the technical workings of my tool, BinaryShield, but it can also be treated as an introduction to VM based protections.&#xA;This is NOT About Hypervisor Technology! To clear up any confusion, I want to first clarify that we are not talking about hypervisors such as VMware. I cannot stress that enough. Although they share similar ideas and terminology, I would argue that the kind of VM, or virtual machine, we will be discussing in the post is completely different to hypervisor technology.</description>
     </item>
     <item>
-      <title>Hacking Clemson University</title>
-      <link>http://localhost:1313/blog/posts/hacking-clemson-university/</link>
-      <pubDate>Wed, 21 Aug 2024 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/blog/posts/hacking-clemson-university/</guid>
+      <title>Clemson University SQL Injection</title>
+      <link>https://connorjaydunn.github.io/blog/posts/clemson-university-sql-injection/</link>
+      <pubDate>Wed, 28 Aug 2024 00:00:00 +0000</pubDate>
+      <guid>https://connorjaydunn.github.io/blog/posts/clemson-university-sql-injection/</guid>
       <description>This article details the steps I took to discover and exploit an SQL injection vulnerability on the Clemson University website using my own tool, SQLiF (SQL injection Finder).&#xA;DISCLAIMER This post and the release of my tool, SQLiF, are intended for educational purposes only. I was previously granted permission from Clemson University to document and share my findings with others. I am not responsible for anything you do with the information presented within this post.</description>
     </item>
     <item>
       <title>About</title>
-      <link>http://localhost:1313/blog/about/</link>
+      <link>https://connorjaydunn.github.io/blog/about/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/blog/about/</guid>
+      <guid>https://connorjaydunn.github.io/blog/about/</guid>
       <description>A blog on cyber security and related topics. You can contact me via email.</description>
     </item>
   </channel>
