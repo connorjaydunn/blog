@@ -1,0 +1,22 @@
+body {
+    font-size: 18px;
+}
+
+p code,
+li code,
+td code {
+    background: #eef2ff;
+    color: #4338ca;
+}
+
+pre, code {
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 0;
+}
